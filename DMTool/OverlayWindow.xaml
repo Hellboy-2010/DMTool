@@ -11,27 +11,34 @@
         Background="Transparent"
         Topmost="True"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        MouseMove="Window_MouseMove"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp">
 
     <Window.Resources>
-        <!-- Den Converter direkt in den Ressourcen definieren -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-
-        <!-- Definieren Sie hier auch Ihren ScaleHalfConverter -->
     </Window.Resources>
+
     <Grid>
-        <ItemsControl x:Name="ImageItemsControl">
-        <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-                <Canvas IsItemsHost="True" ClipToBounds="False"/>
-            </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemContainerStyle>
-            <Style TargetType="ContentPresenter">
-                <Setter Property="Canvas.Left" Value="{Binding PosX}"/>
-                <Setter Property="Canvas.Top" Value="{Binding PosY}"/>
-            </Style>
-        </ItemsControl.ItemContainerStyle>
+        <!-- Schwarzer, halbtransparenter Fog -->
+        <Rectangle x:Name="FogRect" 
+                   Fill="#F5000000"
+                   Visibility="{Binding Source={x:Static local:App.AppSettings}, Path=EnableFogOfWar, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- Bilder-Layer (über dem Fog) -->
+        <ItemsControl x:Name="ImageItemsControl" Panel.ZIndex="1">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Canvas IsItemsHost="True" ClipToBounds="False"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Canvas.Left" Value="{Binding PosX}"/>
+                    <Setter Property="Canvas.Top" Value="{Binding PosY}"/>
+                </Style>
+            </ItemsControl.ItemContainerStyle>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Grid Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -46,9 +53,10 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <!-- Debug-Panel, nur sichtbar wenn aktiviert -->
+
+        <!-- Debug-Panel (ganz oben) -->
         <Border Background="#80000000" VerticalAlignment="Top" HorizontalAlignment="Left" 
-                Padding="10" MaxWidth="300" MaxHeight="200" Margin="10"
+                Padding="10" MaxWidth="300" MaxHeight="200" Margin="10" Panel.ZIndex="2"
                 Visibility="{Binding Source={x:Static local:App.AppSettings}, Path=ShowDebugInfo, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock x:Name="DebugText" Foreground="White" TextWrapping="Wrap" />
         </Border>

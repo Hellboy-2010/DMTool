@@ -194,5 +194,15 @@ namespace DMTool
                 App.UninstallContextMenu();
             }
         }
+
+        private void ResetFogButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (App.OverlayWindow != null)
+            {
+                App.OverlayWindow.ResetFogOfWar();
+                StatusText.Text = "Fog of War zurückgesetzt";
+            }
+        }
+
     }
 }

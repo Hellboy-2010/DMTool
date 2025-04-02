@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DMTool"
         mc:Ignorable="d"
-        Title="DM Tool - Bilderverwaltung" Height="450" Width="600"
+        Title="DM Tool - Bilderverwaltung" Height="450" Width="740"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing"
         AllowDrop="True"
@@ -13,8 +13,9 @@
         DragOver="Window_DragOver"
         Drop="Window_Drop">
 
-    <Grid>
+    <Grid Margin="0,0,-138,0">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
@@ -24,7 +25,7 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
+
         <Border x:Name="DropIndicator" Grid.Row="0" Grid.RowSpan="4" 
                 Background="#808080FF" Opacity="0" Visibility="Collapsed"
                 AllowDrop="True">
@@ -37,37 +38,76 @@
             <Button Content="Alle Bilder ausblenden" Margin="0,0,10,0" Padding="5" Click="HideAllButton_Click"/>
             <Button Content="Alle Bilder anzeigen" Margin="0,0,10,0" Padding="5" Click="ShowAllButton_Click"/>
             <Button Content="Alle Bilder entfernen" Margin="0,0,10,0" Padding="5" Click="RemoveAllButton_Click"/>
+            <Button Content="Fog of War zurücksetzen" Margin="0,0,10,0" Padding="5" Click="ResetFogButton_Click"/>
             <Button Content="Beenden" Margin="0,0,10,0" Padding="5" Click="ExitButton_Click"/>
         </StackPanel>
 
         <GroupBox Grid.Row="1" Header="Einstellungen" Margin="10">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Label Grid.Row="0" Grid.Column="0" Content="Maximale Bildgröße (px):" VerticalAlignment="Center"/>
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
-                    <Slider x:Name="ImageSizeSlider" Minimum="100" Maximum="1000" Width="200"
-                    Value="{Binding Source={x:Static local:App.AppSettings}, Path=MaxImageSize, Mode=TwoWay}"
-                    VerticalAlignment="Center"/>
+                <!-- Erste Zeile: Label links, Slider+TextBlock rechts -->
+                <Label Grid.Row="0" Grid.Column="0" 
+               Content="Maximale Bildgröße (px):" 
+               VerticalAlignment="Center" 
+               Margin="0,5,10,5"/>
+
+                <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" 
+                    Orientation="Horizontal" 
+                    VerticalAlignment="Center" 
+                    Margin="0,5">
+                    <Slider x:Name="ImageSizeSlider" 
+                    Minimum="100" Maximum="1000" Width="200"
+                    Value="{Binding Source={x:Static local:App.AppSettings}, Path=MaxImageSize, Mode=TwoWay}"/>
                     <TextBlock Text="{Binding ElementName=ImageSizeSlider, Path=Value, StringFormat=\{0:F0\}}" 
-                       VerticalAlignment="Center" Margin="10,0,0,0"/>
+                       VerticalAlignment="Center" 
+                       Margin="10,0,0,0"/>
                 </StackPanel>
 
-                <CheckBox Grid.Row="1" Content="Kontextmenü 'Sende an DM-Tool' installieren"
+                <!-- Zweite Zeile: Checkbox links, Checkbox rechts -->
+                <CheckBox Grid.Row="1" Grid.Column="0" 
+                  Content="Kontextmenü 'Sende an DM-Tool' installieren"
                   IsChecked="{Binding Source={x:Static local:App.AppSettings}, Path=InstallContextMenu, Mode=TwoWay}"
-                  Margin="0,4,141,6"
+                  Margin="0,5"
                   Checked="ContextMenu_CheckedChanged"
-                  Unchecked="ContextMenu_CheckedChanged" Grid.ColumnSpan="2"/>
-                <CheckBox Grid.Column="1" Content="Debug-Informationen im Overlay anzeigen"
+                  Unchecked="ContextMenu_CheckedChanged" />
+
+                <CheckBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" 
+                  Content="Debug-Informationen im Overlay anzeigen"
                   IsChecked="{Binding Source={x:Static local:App.AppSettings}, Path=ShowDebugInfo, Mode=TwoWay}"
-                  Margin="164,4,-164,5" Grid.Row="1"/>
+                  Margin="5,5" />
+
+                <!-- Dritte Zeile: Checkbox links, Label mitte, Slider rechts -->
+                <CheckBox Grid.Row="2" Grid.Column="0" 
+                  Content="Fog of War aktivieren"
+                  IsChecked="{Binding Source={x:Static local:App.AppSettings}, Path=EnableFogOfWar, Mode=TwoWay}"
+                  Margin="0,5" />
+
+                <Label Grid.Row="2" Grid.Column="1" 
+               Content="Aufdeckungsgröße:" 
+               VerticalAlignment="Center" 
+               Margin="0,5,10,5" />
+
+                <StackPanel Grid.Row="2" Grid.Column="2" 
+                    Orientation="Horizontal" 
+                    VerticalAlignment="Center" 
+                    Margin="0,5">
+                    <Slider x:Name="FogRevealSizeSlider" 
+                    Minimum="10" Maximum="200" Width="200"
+                    Value="{Binding Source={x:Static local:App.AppSettings}, Path=FogRevealSize, Mode=TwoWay}" />
+                    <TextBlock Text="{Binding ElementName=FogRevealSizeSlider, Path=Value, StringFormat=\{0:F0\}px}" 
+                       VerticalAlignment="Center" 
+                       Margin="10,0,0,0" />
+                </StackPanel>
             </Grid>
         </GroupBox>
 

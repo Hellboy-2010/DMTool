@@ -18,7 +18,8 @@ namespace DMTool
 
         private WinForms.NotifyIcon _notifyIcon;
         private MainWindow _mainWindow;
-        private OverlayWindow _overlayWindow;
+        private static OverlayWindow _overlayWindow;
+        public static OverlayWindow OverlayWindow => _overlayWindow;
         public static void ShutdownApplication()
         {
             IsShuttingDown = true;
@@ -344,6 +345,34 @@ namespace DMTool
         private double _maxImageSize = 400.0;
         private bool _installContextMenu = true;
         private bool _showDebugInfo = false;
+        private bool _enableFogOfWar = false;
+        private double _fogRevealSize = 50.0;
+
+        public bool EnableFogOfWar
+        {
+            get => _enableFogOfWar;
+            set
+            {
+                if (_enableFogOfWar != value)
+                {
+                    _enableFogOfWar = value;
+                    OnPropertyChanged(nameof(EnableFogOfWar));
+                }
+            }
+        }
+
+        public double FogRevealSize
+        {
+            get => _fogRevealSize;
+            set
+            {
+                if (_fogRevealSize != value)
+                {
+                    _fogRevealSize = value;
+                    OnPropertyChanged(nameof(FogRevealSize));
+                }
+            }
+        }
 
         public double MaxImageSize
         {
