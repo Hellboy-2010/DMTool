@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
@@ -153,6 +154,9 @@ namespace DMTool
         }
         public static void SetRandomPositionAndRotation(ImageItem imageItem)
         {
+            if (imageItem == null || imageItem.Image == null)
+                return;
+
             var random = new Random();
 
             // Zufällige Rotation zwischen ±30° oder 180±30°
@@ -165,10 +169,6 @@ namespace DMTool
                 imageItem.Rotation = 180 + random.NextDouble() * 60 - 30; // 150 bis 210 Grad
             }
 
-            // Fixierter Sicherheitsrand in Pixeln
-            double marginX = AppSettings.MaxImageSize;
-            double marginY = AppSettings.MaxImageSize;
-
             // Zielbildschirm bestimmen
             WinForms.Screen targetScreen;
             if (WinForms.Screen.AllScreens.Length > 1)
@@ -180,12 +180,54 @@ namespace DMTool
                 targetScreen = WinForms.Screen.PrimaryScreen;
             }
 
-            // WorkingArea statt Bounds verwenden (vermeidet Überlappung mit Taskleiste)
-            var screenArea = targetScreen.WorkingArea;
+            // Canvas-Dimensionen
+            int canvasWidth = targetScreen.WorkingArea.Width;
+            int canvasHeight = targetScreen.WorkingArea.Height;
 
-            // Position innerhalb der sicheren Grenzen berechnen
-            imageItem.PosX = screenArea.Left + marginX + random.NextDouble() * (screenArea.Width - 2 * marginX);
-            imageItem.PosY = screenArea.Top + marginY + random.NextDouble() * (screenArea.Height - 2 * marginY);
+            // Bildgröße nach Skalierung berechnen
+            int scaledWidth = (int)(imageItem.Image.PixelWidth * imageItem.Scale);
+            int scaledHeight = (int)(imageItem.Image.PixelHeight * imageItem.Scale);
+
+            // Berechne den maximal möglichen Radius eines umschreibenden Kreises
+            // Bei einer Rotation um 45° ist der Radius am größten, entspricht der halben Diagonale
+            int diagonalRadius = (int)(Math.Sqrt(scaledWidth * scaledWidth + scaledHeight * scaledHeight) / 2.0);
+
+            // Zusätzlicher Sicherheitsrand (20% mehr)
+            int safetyMargin = (int)(diagonalRadius * 0.2);
+            int totalMargin = diagonalRadius + safetyMargin;
+
+            // Sichere Positionierungsgrenzen
+            int minX = totalMargin;
+            int maxX = canvasWidth - totalMargin;
+            int minY = totalMargin;
+            int maxY = canvasHeight - totalMargin;
+
+            // Prüfen, ob der sichere Bereich groß genug ist
+            if (maxX <= minX || maxY <= minY)
+            {
+                // Sehr großes Bild - zentrieren und stark verkleinern
+                imageItem.PosX = canvasWidth / 2;
+                imageItem.PosY = canvasHeight / 2;
+
+                // Berechne ein neues Scale, das garantiert passt (mit 70% der Bildschirmgröße)
+                double maxDimension = Math.Max(scaledWidth, scaledHeight);
+                double availableSpace = Math.Min(canvasWidth, canvasHeight) * 0.7;
+                double newScale = imageItem.Scale * (availableSpace / maxDimension);
+
+                imageItem.Scale = newScale;
+            }
+            else
+            {
+                // Position zufällig wählen, aber mit mehr Abstand zum Rand
+                // Wir verwenden als Bildmittelpunkt den Bereich zwischen totalMargin und canvasWidth/Height - totalMargin
+                imageItem.PosX = minX + (int)(random.NextDouble() * (maxX - minX));
+                imageItem.PosY = minY + (int)(random.NextDouble() * (maxY - minY));
+            }
+
+            // Debug-Ausgabe in die Konsole
+            System.Diagnostics.Debug.WriteLine($"Bild: {imageItem.FileName}, Pos: ({imageItem.PosX}, {imageItem.PosY}), " +
+                                               $"Scale: {imageItem.Scale}, Rotation: {imageItem.Rotation}°, " +
+                                               $"Dimensions: {scaledWidth}x{scaledHeight}, Margin: {totalMargin}");
         }
 
         public static void AddImage(string path)
@@ -299,9 +341,50 @@ namespace DMTool
 
     public class Settings
     {
-        public double MaxImageSize { get; set; } = 400.0;
-        public bool InstallContextMenu { get; set; } = true;
+        private double _maxImageSize = 400.0;
+        private bool _installContextMenu = true;
+        private bool _showDebugInfo = false;
 
+        public double MaxImageSize
+        {
+            get => _maxImageSize;
+            set
+            {
+                if (_maxImageSize != value)
+                {
+                    _maxImageSize = value;
+                    OnPropertyChanged(nameof(MaxImageSize));
+                }
+            }
+        }
+
+        public bool InstallContextMenu
+        {
+            get => _installContextMenu;
+            set
+            {
+                if (_installContextMenu != value)
+                {
+                    _installContextMenu = value;
+                    OnPropertyChanged(nameof(InstallContextMenu));
+                }
+            }
+        }
+
+        public bool ShowDebugInfo
+        {
+            get => _showDebugInfo;
+            set
+            {
+                if (_showDebugInfo != value)
+                {
+                    _showDebugInfo = value;
+                    OnPropertyChanged(nameof(ShowDebugInfo));
+                }
+            }
+        }
+
+        // Rest der Klasse bleibt unverändert
         private readonly string _settingsFilePath = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "DMTool",
@@ -349,6 +432,12 @@ namespace DMTool
                 // Bei Fehler: Standardeinstellungen verwenden
             }
         }
-        
+        // PropertyChanged-Ereignis hinzufügen
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 }

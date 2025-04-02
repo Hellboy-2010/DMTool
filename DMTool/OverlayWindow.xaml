@@ -19,8 +19,8 @@
 
         <!-- Definieren Sie hier auch Ihren ScaleHalfConverter -->
     </Window.Resources>
-
-    <ItemsControl x:Name="ImageItemsControl">
+    <Grid>
+        <ItemsControl x:Name="ImageItemsControl">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
                 <Canvas IsItemsHost="True" ClipToBounds="False"/>
@@ -32,18 +32,25 @@
                 <Setter Property="Canvas.Top" Value="{Binding PosY}"/>
             </Style>
         </ItemsControl.ItemContainerStyle>
-        <ItemsControl.ItemTemplate>
-            <DataTemplate>
-                <Grid Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Grid.RenderTransform>
-                        <TransformGroup>
-                            <RotateTransform Angle="{Binding Rotation}"/>
-                            <ScaleTransform ScaleX="{Binding Scale}" ScaleY="{Binding Scale}"/>
-                        </TransformGroup>
-                    </Grid.RenderTransform>
-                    <Image Source="{Binding Image}" Stretch="None"/>
-                </Grid>
-            </DataTemplate>
-        </ItemsControl.ItemTemplate>
-    </ItemsControl>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.RenderTransform>
+                            <TransformGroup>
+                                <RotateTransform Angle="{Binding Rotation}"/>
+                                <ScaleTransform ScaleX="{Binding Scale}" ScaleY="{Binding Scale}"/>
+                            </TransformGroup>
+                        </Grid.RenderTransform>
+                        <Image Source="{Binding Image}" Stretch="None"/>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <!-- Debug-Panel, nur sichtbar wenn aktiviert -->
+        <Border Background="#80000000" VerticalAlignment="Top" HorizontalAlignment="Left" 
+                Padding="10" MaxWidth="300" MaxHeight="200" Margin="10"
+                Visibility="{Binding Source={x:Static local:App.AppSettings}, Path=ShowDebugInfo, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <TextBlock x:Name="DebugText" Foreground="White" TextWrapping="Wrap" />
+        </Border>
+    </Grid>
 </Window>

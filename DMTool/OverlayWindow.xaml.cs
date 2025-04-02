@@ -20,8 +20,29 @@ namespace DMTool
             // ItemsSource direkt setzen
             ImageItemsControl.ItemsSource = App.Images;
 
+            // Beobachter für die Images-Collection hinzufügen
+            ((System.Collections.Specialized.INotifyCollectionChanged)App.Images).CollectionChanged += (s, e) => UpdateDebugInfoIfEnabled();
+
+            // Beobachter für ShowDebugInfo-Änderungen
+            App.AppSettings.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(Settings.ShowDebugInfo))
+                    UpdateDebugInfoIfEnabled();
+            };
+
             // Overlay-Fenster auf zweiten Bildschirm positionieren
             PositionWindowOnSecondaryScreen();
+
+            // Initial Debug-Info aktualisieren
+            UpdateDebugInfoIfEnabled();
+        }
+
+        private void UpdateDebugInfoIfEnabled()
+        {
+            if (App.AppSettings.ShowDebugInfo)
+            {
+                UpdateDebugInfo();
+            }
         }
 
         private void PositionWindowOnSecondaryScreen()
@@ -47,9 +68,32 @@ namespace DMTool
                 Height = workingArea.Height;
             }
         }
-    }
 
-    public class ScaleHalfConverter : IValueConverter
+        private void UpdateDebugInfo()
+        {
+            if (App.Images.Count == 0)
+            {
+                DebugText.Text = "Keine Bilder geladen";
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Bilder: {App.Images.Count}");
+
+            foreach (var img in App.Images.Take(3)) // Zeige nur die ersten 3 zur Übersichtlichkeit
+            {
+                sb.AppendLine($"{img.FileName}: X={img.PosX}, Y={img.PosY}, Sichtbar={img.IsVisible}");
+            }
+
+            if (App.Images.Count > 3)
+            {
+                sb.AppendLine("...");
+            }
+
+            DebugText.Text = sb.ToString();
+        }
+    }
+        public class ScaleHalfConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
