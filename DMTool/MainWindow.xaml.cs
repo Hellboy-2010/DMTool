@@ -18,7 +18,62 @@ namespace DMTool
         {
             InitializeComponent();
             ImagesListView.ItemsSource = App.Images;
+
+            // Dynamische Anpassung des Sliders für die maximale Bildgröße
+            UpdateImageSizeSliderRange();
         }
+
+        private void UpdateImageSizeSliderRange()
+        {
+            try
+            {
+                // Den größten verfügbaren Bildschirm ermitteln
+                int maxScreenDimension = 0;
+                foreach (var screen in WinForms.Screen.AllScreens)
+                {
+                    maxScreenDimension = Math.Max(maxScreenDimension,
+                        Math.Max(screen.WorkingArea.Width, screen.WorkingArea.Height));
+                }
+
+                // Wenn kein Bildschirm gefunden wurde oder ein Fehler auftritt, Standardwerte verwenden
+                if (maxScreenDimension <= 0)
+                {
+                    maxScreenDimension = 1920; // Typische Full-HD-Auflösung als Fallback
+                }
+
+                // Slider-Grenzen anpassen
+                ImageSizeSlider.Minimum = 100; // Minimale Größe bleibt gleich
+                ImageSizeSlider.Maximum = maxScreenDimension; // Maximale Größe ist die größte Bildschirmdimension
+
+                // Slider-Schrittweite anpassen (je nach Bildschirmgröße)
+                ImageSizeSlider.SmallChange = Math.Max(10, maxScreenDimension / 100);
+                ImageSizeSlider.LargeChange = Math.Max(50, maxScreenDimension / 20);
+
+                // Falls der aktuelle Wert außerhalb der neuen Grenzen liegt, anpassen
+                if (ImageSizeSlider.Value > ImageSizeSlider.Maximum)
+                {
+                    App.AppSettings.MaxImageSize = ImageSizeSlider.Maximum;
+                }
+                else if (ImageSizeSlider.Value < ImageSizeSlider.Minimum)
+                {
+                    App.AppSettings.MaxImageSize = ImageSizeSlider.Minimum;
+                }
+
+                StatusText.Text = $"Slider angepasst: 100-{maxScreenDimension}px";
+            }
+            catch (Exception ex)
+            {
+                // Im Fehlerfall Standardwerte verwenden
+                System.Diagnostics.Debug.WriteLine($"Fehler bei der Slider-Anpassung: {ex.Message}");
+                ImageSizeSlider.Minimum = 100;
+                ImageSizeSlider.Maximum = 1000;
+            }
+        }
+        public void RefreshImageSizeSlider()
+        {
+            UpdateImageSizeSliderRange();
+        }
+
         private void Window_DragEnter(object sender, DragEventArgs e)
         {
             // Prüfen, ob die gezogenen Dateien Bilder sind

@@ -162,29 +162,15 @@ namespace DMTool
 
             var random = new Random();
 
-            // Zufällige Rotation zwischen ±30° oder 180±30°
-            if (random.Next(2) == 0)
-            {
-                imageItem.Rotation = random.NextDouble() * 60 - 30; // -30 bis +30 Grad
-            }
-            else
-            {
-                imageItem.Rotation = 180 + random.NextDouble() * 60 - 30; // 150 bis 210 Grad
-            }
-
-            // Zielbildschirm bestimmen - suchen nach Nicht-Primär-Bildschirm
+            // Zielbildschirm bestimmen
             WinForms.Screen targetScreen;
             if (WinForms.Screen.AllScreens.Length > 1)
             {
-                // Versuche, den Nicht-Primär-Bildschirm zu finden
                 var secondaryScreen = WinForms.Screen.AllScreens.FirstOrDefault(s => !s.Primary);
-
-                // Falls kein eindeutiger Nicht-Primär-Bildschirm gefunden wurde, nehme einen anderen als den Primären
                 if (secondaryScreen == null)
                 {
                     secondaryScreen = WinForms.Screen.AllScreens.First(s => s != WinForms.Screen.PrimaryScreen);
                 }
-
                 targetScreen = secondaryScreen;
             }
             else
@@ -192,62 +178,159 @@ namespace DMTool
                 targetScreen = WinForms.Screen.PrimaryScreen;
             }
 
-            // Canvas-Dimensionen des Zielbildschirms
-            int canvasWidth = targetScreen.WorkingArea.Width;
-            int canvasHeight = targetScreen.WorkingArea.Height;
+            // Bildschirmabmessungen
+            int screenWidth = targetScreen.WorkingArea.Width;
+            int screenHeight = targetScreen.WorkingArea.Height;
 
-            // Bildgröße nach Skalierung berechnen
-            int scaledWidth = (int)(imageItem.Image.PixelWidth * imageItem.Scale);
-            int scaledHeight = (int)(imageItem.Image.PixelHeight * imageItem.Scale);
+            System.Diagnostics.Debug.WriteLine($"POSITIONIERUNG MIT DYNAMISCHER GRÖSSENANPASSUNG");
+            System.Diagnostics.Debug.WriteLine($"Bildschirm: {screenWidth}x{screenHeight}");
 
-            // Berechne den maximal möglichen Radius eines umschreibenden Kreises
-            // Bei einer Rotation um 45° ist der Radius am größten, entspricht der halben Diagonale
-            int diagonalRadius = (int)(Math.Sqrt(scaledWidth * scaledWidth + scaledHeight * scaledHeight) / 2.0);
+            // Originale Bilddimensionen
+            double originalWidth = imageItem.Image.PixelWidth;
+            double originalHeight = imageItem.Image.PixelHeight;
 
-            // Zusätzlicher Sicherheitsrand (20% mehr)
-            int safetyMargin = (int)(diagonalRadius * 0.2);
-            int totalMargin = diagonalRadius + safetyMargin;
+            System.Diagnostics.Debug.WriteLine($"Originales Bild: {originalWidth}x{originalHeight}");
 
-            // Sichere Positionierungsgrenzen unter Berücksichtigung der Bildschirmposition
-            int minX = totalMargin;
-            int maxX = canvasWidth - totalMargin;
-            int minY = totalMargin;
-            int maxY = canvasHeight - totalMargin;
+            // Maximale Skalierungsfaktoren berechnen:
+            // 1. Basierend auf AppSettings.MaxImageSize
+            // 2. Basierend auf Bildschirmbreite (100%)
+            // 3. Basierend auf Bildschirmhöhe (100%)
+            double maxSettingScale = AppSettings.MaxImageSize / Math.Max(originalWidth, originalHeight);
+            double maxWidthScale = screenWidth / originalWidth;
+            double maxHeightScale = screenHeight / originalHeight;
 
-            // Debug-Informationen
-            System.Diagnostics.Debug.WriteLine($"Zielbildschirm: {targetScreen.DeviceName}, Bounds: {targetScreen.Bounds}, WorkingArea: {targetScreen.WorkingArea}");
+            // Der kleinste dieser Faktoren ist der limitierende Faktor
+            double scale = Math.Min(maxSettingScale, Math.Min(maxWidthScale, maxHeightScale));
 
-            // Prüfen, ob der sichere Bereich groß genug ist
-            if (maxX <= minX || maxY <= minY)
+            // Sicherheitsreduktion um 5%, damit ein Mindestrand bleibt
+            scale *= 0.95;
+
+            imageItem.Scale = scale;
+
+            System.Diagnostics.Debug.WriteLine($"Skalierungsfaktoren - Einstellung: {maxSettingScale:F3}, Breite: {maxWidthScale:F3}, Höhe: {maxHeightScale:F3}");
+            System.Diagnostics.Debug.WriteLine($"Finaler Skalierungsfaktor: {scale:F3}");
+
+            // Skalierte Dimensionen berechnen
+            double scaledWidth = originalWidth * scale;
+            double scaledHeight = originalHeight * scale;
+
+            System.Diagnostics.Debug.WriteLine($"Skaliertes Bild: {scaledWidth:F1}x{scaledHeight:F1}px");
+
+            // Berechnen des Verhältnisses der Bildgröße zur Bildschirmgröße
+            double widthRatio = scaledWidth / screenWidth;
+            double heightRatio = scaledHeight / screenHeight;
+            double sizeRatio = Math.Max(widthRatio, heightRatio);
+
+            System.Diagnostics.Debug.WriteLine($"Größenverhältnis zum Bildschirm: {sizeRatio:P1}");
+
+            // Zufällige Rotation bestimmen - keine Rotation für große Bilder
+            bool allowRotation = sizeRatio <= 0.8; // Keine Rotation, wenn das Bild >80% des Bildschirms einnimmt
+
+            if (allowRotation)
             {
-                System.Diagnostics.Debug.WriteLine("Sicherer Bereich zu klein, zentriere und skaliere Bild");
-
-                // Sehr großes Bild - zentrieren und stark verkleinern
-                imageItem.PosX = canvasWidth / 2;
-                imageItem.PosY = canvasHeight / 2;
-
-                // Berechne ein neues Scale, das garantiert passt (mit 70% der Bildschirmgröße)
-                double maxDimension = Math.Max(scaledWidth, scaledHeight);
-                double availableSpace = Math.Min(canvasWidth, canvasHeight) * 0.7;
-                double newScale = imageItem.Scale * (availableSpace / maxDimension);
-
-                imageItem.Scale = Math.Max(0.1, newScale); // Mindestens 10% der Originalgröße
+                bool isAround0 = random.Next(2) == 0;
+                double baseRotation = isAround0 ? 0 : 180;
+                double variation = (random.NextDouble() * 20) - 10; // -10° bis +10°
+                imageItem.Rotation = baseRotation + variation;
+                System.Diagnostics.Debug.WriteLine($"Rotation erlaubt, Wert: {imageItem.Rotation:F1}°");
             }
             else
             {
-                // Position zufällig wählen, aber mit mehr Abstand zum Rand
-                // Wir verwenden als Bildmittelpunkt den Bereich zwischen totalMargin und canvasWidth/Height - totalMargin
-                imageItem.PosX = minX + (int)(random.NextDouble() * (maxX - minX));
-                imageItem.PosY = minY + (int)(random.NextDouble() * (maxY - minY));
-
-                System.Diagnostics.Debug.WriteLine($"Positioniere Bild bei ({imageItem.PosX}, {imageItem.PosY})");
+                imageItem.Rotation = 0; // Bei großen Bildern keine Rotation
+                System.Diagnostics.Debug.WriteLine("Bild zu groß für Rotation, setze Rotation auf 0°");
             }
 
-            // Debug-Ausgabe
-            System.Diagnostics.Debug.WriteLine($"Bild: {imageItem.FileName}, Pos: ({imageItem.PosX}, {imageItem.PosY}), " +
-                                               $"Scale: {imageItem.Scale}, Rotation: {imageItem.Rotation}°, " +
-                                               $"Dimensions: {scaledWidth}x{scaledHeight}, Margin: {totalMargin}");
+            // Berechnung des Sicherheitsrands
+            int baseMargin = 80; // Basis-Sicherheitsrand
+            int totalMargin = baseMargin;
+
+            // Zusätzlicher Rand für Rotation, falls Rotation verwendet wird
+            if (allowRotation && Math.Abs(imageItem.Rotation) > 0.1)
+            {
+                double diagonalRadius = Math.Sqrt(scaledWidth * scaledWidth + scaledHeight * scaledHeight) / 2;
+                double straightRadius = Math.Max(scaledWidth, scaledHeight) / 2;
+                double rotationRadians = Math.Abs(imageItem.Rotation % 180) * Math.PI / 180;
+                double extraMarginForRotation = (diagonalRadius - straightRadius) * Math.Sin(rotationRadians);
+
+                totalMargin += (int)Math.Ceiling(extraMarginForRotation);
+                System.Diagnostics.Debug.WriteLine($"Zusätzlicher Rand für Rotation: {(int)Math.Ceiling(extraMarginForRotation)}px");
+            }
+
+            // Bei sehr großen Bildern den Rand reduzieren, damit das Bild überhaupt passt
+            if (sizeRatio > 0.8)
+            {
+                //totalMargin = Math.Max(20, totalMargin / 2); // Mindestens 20px, aber Reduktion um 50%
+                totalMargin = 0;
+                System.Diagnostics.Debug.WriteLine($"Rand reduziert wegen Bildgröße auf {totalMargin}px");
+            }
+
+            // Berechnung der sicheren Grenzen für die Positionierung
+            int minX, maxX, minY, maxY;
+
+            if (imageItem.Rotation < 90 || imageItem.Rotation > 270) // Nahe 0° Rotation
+            {
+                // Bei 0° Rotation: Normaler Fall mit Sicherheitsrand
+                minX = totalMargin;
+                maxX = (int)(screenWidth - scaledWidth - totalMargin);
+                minY = totalMargin;
+                maxY = (int)(screenHeight - scaledHeight - totalMargin);
+            }
+            else // Nahe 180° Rotation
+            {
+                // Bei 180° Rotation brauchen wir zusätzlichen Platz auf der linken und oberen Seite
+                minX = (int)(scaledWidth + totalMargin);
+                maxX = (int)(screenWidth - totalMargin);
+                minY = (int)(scaledHeight + totalMargin);
+                maxY = (int)(screenHeight - totalMargin);
+            }
+
+            // Sicherstellen, dass die Grenzen sinnvoll sind
+            if (maxX < minX)
+            {
+                System.Diagnostics.Debug.WriteLine("WARNUNG: Bild ist zu breit für sichere Positionierung");
+                // Zentrieren
+                minX = maxX = screenWidth / 2;
+            }
+            if (maxY < minY)
+            {
+                System.Diagnostics.Debug.WriteLine("WARNUNG: Bild ist zu hoch für sichere Positionierung");
+                // Zentrieren
+                minY = maxY = screenHeight / 2;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Sichere Positionierungsgrenzen: X({minX}-{maxX}), Y({minY}-{maxY})");
+
+            // Zufällige Position innerhalb der sicheren Grenzen wählen
+            if (maxX > minX)
+            {
+                imageItem.PosX = minX + random.Next(maxX - minX + 1);
+            }
+            else
+            {
+                imageItem.PosX = minX;
+            }
+
+            if (maxY > minY)
+            {
+                imageItem.PosY = minY + random.Next(maxY - minY + 1);
+            }
+            else
+            {
+                imageItem.PosY = minY;
+            }
+
+            // Finale Koordinaten
+            System.Diagnostics.Debug.WriteLine($"Finale Position: X={imageItem.PosX}, Y={imageItem.PosY}");
+
+            // Zusammenfassung
+            System.Diagnostics.Debug.WriteLine("Zusammenfassung:");
+            System.Diagnostics.Debug.WriteLine($"- Bild: {imageItem.FileName}");
+            System.Diagnostics.Debug.WriteLine($"- Größe: {scaledWidth:F1}x{scaledHeight:F1}px ({sizeRatio:P1} des Bildschirms)");
+            System.Diagnostics.Debug.WriteLine($"- Rotation: {imageItem.Rotation:F1}° (Erlaubt: {allowRotation})");
+            System.Diagnostics.Debug.WriteLine($"- Position: ({imageItem.PosX}, {imageItem.PosY})");
+            System.Diagnostics.Debug.WriteLine($"- Sicherheitsrand: {totalMargin}px");
         }
+
 
         public static void AddImage(string path)
         {
