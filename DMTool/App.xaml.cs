@@ -170,18 +170,27 @@ namespace DMTool
                 imageItem.Rotation = 180 + random.NextDouble() * 60 - 30; // 150 bis 210 Grad
             }
 
-            // Zielbildschirm bestimmen
+            // Zielbildschirm bestimmen - suchen nach Nicht-Primär-Bildschirm
             WinForms.Screen targetScreen;
             if (WinForms.Screen.AllScreens.Length > 1)
             {
-                targetScreen = WinForms.Screen.AllScreens[1];
+                // Versuche, den Nicht-Primär-Bildschirm zu finden
+                var secondaryScreen = WinForms.Screen.AllScreens.FirstOrDefault(s => !s.Primary);
+
+                // Falls kein eindeutiger Nicht-Primär-Bildschirm gefunden wurde, nehme einen anderen als den Primären
+                if (secondaryScreen == null)
+                {
+                    secondaryScreen = WinForms.Screen.AllScreens.First(s => s != WinForms.Screen.PrimaryScreen);
+                }
+
+                targetScreen = secondaryScreen;
             }
             else
             {
                 targetScreen = WinForms.Screen.PrimaryScreen;
             }
 
-            // Canvas-Dimensionen
+            // Canvas-Dimensionen des Zielbildschirms
             int canvasWidth = targetScreen.WorkingArea.Width;
             int canvasHeight = targetScreen.WorkingArea.Height;
 
@@ -197,15 +206,20 @@ namespace DMTool
             int safetyMargin = (int)(diagonalRadius * 0.2);
             int totalMargin = diagonalRadius + safetyMargin;
 
-            // Sichere Positionierungsgrenzen
+            // Sichere Positionierungsgrenzen unter Berücksichtigung der Bildschirmposition
             int minX = totalMargin;
             int maxX = canvasWidth - totalMargin;
             int minY = totalMargin;
             int maxY = canvasHeight - totalMargin;
 
+            // Debug-Informationen
+            System.Diagnostics.Debug.WriteLine($"Zielbildschirm: {targetScreen.DeviceName}, Bounds: {targetScreen.Bounds}, WorkingArea: {targetScreen.WorkingArea}");
+
             // Prüfen, ob der sichere Bereich groß genug ist
             if (maxX <= minX || maxY <= minY)
             {
+                System.Diagnostics.Debug.WriteLine("Sicherer Bereich zu klein, zentriere und skaliere Bild");
+
                 // Sehr großes Bild - zentrieren und stark verkleinern
                 imageItem.PosX = canvasWidth / 2;
                 imageItem.PosY = canvasHeight / 2;
@@ -215,7 +229,7 @@ namespace DMTool
                 double availableSpace = Math.Min(canvasWidth, canvasHeight) * 0.7;
                 double newScale = imageItem.Scale * (availableSpace / maxDimension);
 
-                imageItem.Scale = newScale;
+                imageItem.Scale = Math.Max(0.1, newScale); // Mindestens 10% der Originalgröße
             }
             else
             {
@@ -223,9 +237,11 @@ namespace DMTool
                 // Wir verwenden als Bildmittelpunkt den Bereich zwischen totalMargin und canvasWidth/Height - totalMargin
                 imageItem.PosX = minX + (int)(random.NextDouble() * (maxX - minX));
                 imageItem.PosY = minY + (int)(random.NextDouble() * (maxY - minY));
+
+                System.Diagnostics.Debug.WriteLine($"Positioniere Bild bei ({imageItem.PosX}, {imageItem.PosY})");
             }
 
-            // Debug-Ausgabe in die Konsole
+            // Debug-Ausgabe
             System.Diagnostics.Debug.WriteLine($"Bild: {imageItem.FileName}, Pos: ({imageItem.PosX}, {imageItem.PosY}), " +
                                                $"Scale: {imageItem.Scale}, Rotation: {imageItem.Rotation}°, " +
                                                $"Dimensions: {scaledWidth}x{scaledHeight}, Margin: {totalMargin}");

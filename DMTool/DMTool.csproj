@@ -7,16 +7,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\app_icon.ico</ApplicationIcon>
+
+    <!-- Single-File Publishing -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
-    <FileVersion>1.0.0</FileVersion>
-    <Product>DM Tool</Product>
-    <Description>Ein Tool für Dungeon Master zur Anzeige von Bildern und das verdecken des kompletten Inhalts eines zweiten Bildschirms (fog of war)</Description>
+
+    <!-- Größenoptimierung (ohne Trimming) -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- Version -->
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1</AssemblyVersion>
+    <FileVersion>1.0.1</FileVersion>
     <Company>Robert Bladowski</Company>
     <Copyright>Copyright © 2025</Copyright>
   </PropertyGroup>
