@@ -16,6 +16,8 @@ namespace DMTool
         public static Settings AppSettings { get; } = new Settings();
         public static bool IsShuttingDown { get; private set; } = false;
 
+        private int _positionOffsetX = 0;
+        private int _positionOffsetY = 0;
         private WinForms.NotifyIcon _notifyIcon;
         private MainWindow _mainWindow;
         private static OverlayWindow _overlayWindow;
@@ -356,13 +358,41 @@ namespace DMTool
         }
     }
 
-    public class Settings
+    public class Settings : INotifyPropertyChanged
     {
         private double _maxImageSize = 400.0;
         private bool _installContextMenu = true;
         private bool _showDebugInfo = false;
         private bool _enableFogOfWar = false;
         private double _fogRevealSize = 50.0;
+        private int _positionOffsetX = 0;
+        private int _positionOffsetY = 0;
+
+        public int PositionOffsetX
+        {
+            get => _positionOffsetX;
+            set
+            {
+                if (_positionOffsetX != value)
+                {
+                    _positionOffsetX = value;
+                    OnPropertyChanged(nameof(PositionOffsetX));
+                }
+            }
+        }
+
+        public int PositionOffsetY
+        {
+            get => _positionOffsetY;
+            set
+            {
+                if (_positionOffsetY != value)
+                {
+                    _positionOffsetY = value;
+                    OnPropertyChanged(nameof(PositionOffsetY));
+                }
+            }
+        }
 
         public bool EnableFogOfWar
         {
@@ -451,9 +481,10 @@ namespace DMTool
                     serializer.Serialize(writer, this);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fehlerbehandlung
+                // Verbesserte Fehlerbehandlung mit Logging
+                System.Diagnostics.Debug.WriteLine($"Fehler beim Speichern der Einstellungen: {ex.Message}");
             }
         }
 
@@ -469,14 +500,21 @@ namespace DMTool
                         var settings = (Settings)serializer.Deserialize(reader);
                         MaxImageSize = settings.MaxImageSize;
                         InstallContextMenu = settings.InstallContextMenu;
+                        ShowDebugInfo = settings.ShowDebugInfo;
+                        EnableFogOfWar = settings.EnableFogOfWar;
+                        FogRevealSize = settings.FogRevealSize;
+                        PositionOffsetX = settings.PositionOffsetX;
+                        PositionOffsetY = settings.PositionOffsetY;
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Bei Fehler: Standardeinstellungen verwenden
+                // Bei Fehler: Standardeinstellungen verwenden und Fehler protokollieren
+                System.Diagnostics.Debug.WriteLine($"Fehler beim Laden der Einstellungen: {ex.Message}");
             }
         }
+
         // PropertyChanged-Ereignis hinzufügen
         public event PropertyChangedEventHandler PropertyChanged;
 

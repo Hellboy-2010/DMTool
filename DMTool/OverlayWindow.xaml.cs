@@ -15,6 +15,75 @@ using WPF = System.Windows;
 
 namespace DMTool
 {
+    // Value Converter für die Kalibrierungsanzeige
+    public class ScaleHalfConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is double size && parameter is double scale)
+            {
+                return size * scale / 2;
+            }
+            return 0;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class DivideByTwoConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is double number)
+            {
+                return number / 2;
+            }
+            return 0;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class SubtractValueConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is double number && parameter is string paramStr && double.TryParse(paramStr, out double paramValue))
+            {
+                return number - paramValue;
+            }
+            return 0;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class CenterRectangleConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is double dimension && parameter is string paramStr && double.TryParse(paramStr, out double objectSize))
+            {
+                // Berechnet die Position, um das Objekt zu zentrieren
+                return (dimension / 2) - (objectSize / 2);
+            }
+            return 0;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
     public partial class OverlayWindow : Window
     {
         private bool _isErasing = false;
@@ -37,7 +106,15 @@ namespace DMTool
             App.AppSettings.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(Settings.ShowDebugInfo))
+                {
                     UpdateDebugInfoIfEnabled();
+
+                    // Bei Änderung des Debug-Status Kalibrierungsmarker aktualisieren
+                    if (App.AppSettings.ShowDebugInfo)
+                    {
+                        CreateCalibrationMarkers();
+                    }
+                }
                 else if (e.PropertyName == nameof(Settings.EnableFogOfWar))
                 {
                     // Sicherstellen, dass Fog-Visibilität korrekt aktualisiert wird
@@ -200,6 +277,7 @@ namespace DMTool
                 sb.AppendLine($"Fenster: {Width:F0} x {Height:F0}");
                 sb.AppendLine($"Fensterposition: ({Left:F0}, {Top:F0})");
                 sb.AppendLine($"Fog of War: {(App.AppSettings.EnableFogOfWar ? "Ein" : "Aus")}");
+                sb.AppendLine($"Position-Offsets: X={App.AppSettings.PositionOffsetX}, Y={App.AppSettings.PositionOffsetY}");
 
                 // Bildschirminformationen hinzufügen
                 sb.AppendLine("\nBildschirme:");
@@ -256,11 +334,13 @@ namespace DMTool
                 System.Diagnostics.Debug.WriteLine($"Sekundärer Bildschirm gefunden: {secondaryScreen.DeviceName}");
                 System.Diagnostics.Debug.WriteLine($"Position: ({workingArea.Left}, {workingArea.Top}), Größe: {workingArea.Width}x{workingArea.Height}");
 
-                // Setze die Fensterposition und -größe
-                Left = workingArea.Left;
-                Top = workingArea.Top;
+                // Setze die Fensterposition und -größe MIT Berücksichtigung der Offsets
+                Left = workingArea.Left + App.AppSettings.PositionOffsetX;
+                Top = workingArea.Top + App.AppSettings.PositionOffsetY;
                 Width = workingArea.Width;
                 Height = workingArea.Height;
+
+                System.Diagnostics.Debug.WriteLine($"Fenster positioniert mit Offsets: ({Left}, {Top}), Offsets: X={App.AppSettings.PositionOffsetX}, Y={App.AppSettings.PositionOffsetY}");
 
                 // Aktualisiere den Fog of War, um sicherzustellen, dass er die gesamte Bildschirmfläche abdeckt
                 InitializeFogOfWar();
@@ -273,8 +353,9 @@ namespace DMTool
 
                 System.Diagnostics.Debug.WriteLine("Nur ein Bildschirm gefunden. Verwende Primärbildschirm.");
 
-                Left = workingArea.Left;
-                Top = workingArea.Top;
+                // Auch hier Offsets berücksichtigen
+                Left = workingArea.Left + App.AppSettings.PositionOffsetX;
+                Top = workingArea.Top + App.AppSettings.PositionOffsetY;
                 Width = workingArea.Width;
                 Height = workingArea.Height;
 
@@ -316,6 +397,7 @@ namespace DMTool
             {
                 System.Diagnostics.Debug.WriteLine("Overlay-Fenster geladen, überprüfe Fog of War-Abdeckung");
                 EnsureFogCoversScreen();
+                CreateCalibrationMarkers();
             };
 
             // SourceInitialized nutzen, um sicherzustellen, dass wir den korrekten Handle haben
@@ -330,24 +412,273 @@ namespace DMTool
             {
                 System.Diagnostics.Debug.WriteLine($"Fenstergröße geändert auf {Width}x{Height}, aktualisiere Fog of War");
                 InitializeFogOfWar();
+                CreateCalibrationMarkers();
+            };
+
+            // Bei Änderung der Offsets die Fensterposition aktualisieren
+            App.AppSettings.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == "PositionOffsetX" || e.PropertyName == "PositionOffsetY")
+                {
+                    // Fensterposition aktualisieren, wenn sich die Offsets ändern
+                    UpdateWindowPositionForOffsetChange();
+
+                    // Debug-Infos aktualisieren
+                    UpdateDebugInfoIfEnabled();
+                }
             };
         }
-    }
 
-    public class ScaleHalfConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        // Diese Methode sollte bei Änderung der Offsets aufgerufen werden
+        private void UpdateWindowPositionForOffsetChange()
         {
-            if (value is double size && parameter is double scale)
+            // Aktuelle Position abrufen
+            WinForms.Screen currentScreen = WinForms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            var workingArea = currentScreen.WorkingArea;
+
+            // Position mit Offsets aktualisieren
+            Left = workingArea.Left + App.AppSettings.PositionOffsetX;
+            Top = workingArea.Top + App.AppSettings.PositionOffsetY;
+
+            System.Diagnostics.Debug.WriteLine($"Fensterposition wegen Offset-Änderung aktualisiert: ({Left}, {Top})");
+        }
+
+        private void CreateCalibrationMarkers()
+        {
+            try
             {
-                return size * scale / 2;
-            }
-            return 0;
-        }
+                // Referenzen zu den Canvas-Elementen im XAML
+                var calibrationFrame = FindName("CalibrationFrame") as Canvas;
+                if (calibrationFrame == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Fehler: CalibrationFrame konnte nicht gefunden werden.");
+                    return;
+                }
 
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
+                var borders = calibrationFrame.Children.OfType<Border>().ToList();
+                if (borders.Count < 4)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Fehler: Nicht genügend Border-Elemente gefunden: {borders.Count}");
+                    return;
+                }
+
+                var topCanvas = borders[0].Child as Canvas;
+                var bottomCanvas = borders[1].Child as Canvas;
+                var leftCanvas = borders[2].Child as Canvas;
+                var rightCanvas = borders[3].Child as Canvas;
+
+                if (topCanvas == null || bottomCanvas == null ||
+                    leftCanvas == null || rightCanvas == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Fehler: Canvas-Elemente konnten nicht gefunden werden.");
+                    return;
+                }
+
+                // Löschen Sie vorhandene Markierungen
+                topCanvas.Children.Clear();
+                bottomCanvas.Children.Clear();
+                leftCanvas.Children.Clear();
+                rightCanvas.Children.Clear();
+
+                // Entferne alte Info-Labels
+                foreach (var child in calibrationFrame.Children.OfType<TextBlock>().ToList())
+                {
+                    calibrationFrame.Children.Remove(child);
+                }
+
+                // Erstellen der horizontalen Markierungen (oben und unten)
+                double width = this.ActualWidth;
+                for (int x = 0; x < width; x += 100) // Große Markierungen alle 100 Pixel
+                {
+                    // Oben
+                    var lineTop = new Line
+                    {
+                        X1 = x,
+                        Y1 = 0,
+                        X2 = x,
+                        Y2 = 15,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 1
+                    };
+                    topCanvas.Children.Add(lineTop);
+
+                    var textTop = new TextBlock
+                    {
+                        Text = x.ToString(),
+                        Foreground = Brushes.Yellow,
+                        FontSize = 9
+                    };
+                    Canvas.SetLeft(textTop, x + 2);
+                    Canvas.SetTop(textTop, 16);
+                    topCanvas.Children.Add(textTop);
+
+                    // Unten
+                    var lineBottom = new Line
+                    {
+                        X1 = x,
+                        Y1 = 15,
+                        X2 = x,
+                        Y2 = 30,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 1
+                    };
+                    bottomCanvas.Children.Add(lineBottom);
+
+                    var textBottom = new TextBlock
+                    {
+                        Text = x.ToString(),
+                        Foreground = Brushes.Yellow,
+                        FontSize = 9
+                    };
+                    Canvas.SetLeft(textBottom, x + 2);
+                    Canvas.SetTop(textBottom, 0);
+                    bottomCanvas.Children.Add(textBottom);
+                }
+
+                // Kleinere Markierungen alle 50 Pixel
+                for (int x = 50; x < width; x += 100)
+                {
+                    // Oben
+                    var lineTop = new Line
+                    {
+                        X1 = x,
+                        Y1 = 0,
+                        X2 = x,
+                        Y2 = 10,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 0.5
+                    };
+                    topCanvas.Children.Add(lineTop);
+
+                    // Unten
+                    var lineBottom = new Line
+                    {
+                        X1 = x,
+                        Y1 = 20,
+                        X2 = x,
+                        Y2 = 30,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 0.5
+                    };
+                    bottomCanvas.Children.Add(lineBottom);
+                }
+
+                // Erstellen der vertikalen Markierungen (links und rechts)
+                double height = this.ActualHeight;
+                for (int y = 0; y < height; y += 100) // Große Markierungen alle 100 Pixel
+                {
+                    // Links
+                    var lineLeft = new Line
+                    {
+                        X1 = 0,
+                        Y1 = y,
+                        X2 = 15,
+                        Y2 = y,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 1
+                    };
+                    leftCanvas.Children.Add(lineLeft);
+
+                    var textLeft = new TextBlock
+                    {
+                        Text = y.ToString(),
+                        Foreground = Brushes.Yellow,
+                        FontSize = 9
+                    };
+                    Canvas.SetLeft(textLeft, 16);
+                    Canvas.SetTop(textLeft, y);
+                    leftCanvas.Children.Add(textLeft);
+
+                    // Rechts
+                    var lineRight = new Line
+                    {
+                        X1 = 15,
+                        Y1 = y,
+                        X2 = 30,
+                        Y2 = y,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 1
+                    };
+                    rightCanvas.Children.Add(lineRight);
+
+                    var textRight = new TextBlock
+                    {
+                        Text = y.ToString(),
+                        Foreground = Brushes.Yellow,
+                        FontSize = 9
+                    };
+                    Canvas.SetLeft(textRight, 0);
+                    Canvas.SetTop(textRight, y);
+                    rightCanvas.Children.Add(textRight);
+                }
+
+                // Kleinere Markierungen alle 50 Pixel
+                for (int y = 50; y < height; y += 100)
+                {
+                    // Links
+                    var lineLeft = new Line
+                    {
+                        X1 = 0,
+                        Y1 = y,
+                        X2 = 10,
+                        Y2 = y,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 0.5
+                    };
+                    leftCanvas.Children.Add(lineLeft);
+
+                    // Rechts
+                    var lineRight = new Line
+                    {
+                        X1 = 20,
+                        Y1 = y,
+                        X2 = 30,
+                        Y2 = y,
+                        Stroke = Brushes.Yellow,
+                        StrokeThickness = 0.5
+                    };
+                    rightCanvas.Children.Add(lineRight);
+                }
+
+                // Zentrumsmarkierung
+                var centerX = width / 2;
+                var centerY = height / 2;
+
+                // Erstelle ein Label für die Anzeige der Bildschirmgröße
+                TextBlock sizeInfo = new TextBlock
+                {
+                    Text = $"Bildschirm: {width}x{height} px",
+                    Foreground = Brushes.White,
+                    Background = new SolidColorBrush(Color.FromArgb(128, 0, 0, 0)),
+                    FontSize = 12,
+                    Padding = new Thickness(5)
+                };
+                Canvas.SetLeft(sizeInfo, 100);
+                Canvas.SetTop(sizeInfo, 100);
+                calibrationFrame.Children.Add(sizeInfo);
+
+                // Erstelle ein Label für die aktuelle Offset-Einstellung
+                TextBlock offsetInfo = new TextBlock
+                {
+                    Text = $"Aktueller Offset: X={App.AppSettings.PositionOffsetX}px, Y={App.AppSettings.PositionOffsetY}px",
+                    Foreground = Brushes.White,
+                    Background = new SolidColorBrush(Color.FromArgb(128, 0, 0, 0)),
+                    FontSize = 12,
+                    Padding = new Thickness(5)
+                };
+                Canvas.SetLeft(offsetInfo, 100);
+                Canvas.SetTop(offsetInfo, 130);
+                calibrationFrame.Children.Add(offsetInfo);
+
+                System.Diagnostics.Debug.WriteLine($"Kalibrierungsmarkierungen erstellt. Bildschirmgröße: {width}x{height}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Fehler beim Erstellen der Kalibrierungsmarkierungen: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
+            }
         }
     }
+
+    
 }

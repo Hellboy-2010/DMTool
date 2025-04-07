@@ -53,6 +53,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Erste Zeile: Label links, Slider+TextBlock rechts -->
@@ -108,6 +109,47 @@
                        VerticalAlignment="Center" 
                        Margin="10,0,0,0" />
                 </StackPanel>
+
+                <!-- Vierte Zeile: Positionsoffsets -->
+                <StackPanel Grid.Row="3" Grid.Column="0" 
+                    Orientation="Horizontal" 
+                    VerticalAlignment="Center" 
+                    Margin="0,5">
+                    <Label Content="Positionskorrektur:" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Grid Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" 
+              VerticalAlignment="Center" 
+              Margin="0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0" Content="X-Offset:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Slider x:Name="PositionOffsetXSlider" 
+                        Minimum="-500" Maximum="500" Width="100"
+                        Value="{Binding Source={x:Static local:App.AppSettings}, Path=PositionOffsetX, Mode=TwoWay}" 
+                        TickFrequency="50" IsSnapToTickEnabled="True"/>
+                        <TextBlock Text="{Binding ElementName=PositionOffsetXSlider, Path=Value, StringFormat=\{0:F0\}px}" 
+                           VerticalAlignment="Center" 
+                           Margin="5,0,0,0" Width="45"/>
+                    </StackPanel>
+
+                    <Label Grid.Column="2" Content="Y-Offset:" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Slider x:Name="PositionOffsetYSlider" 
+                        Minimum="-500" Maximum="500" Width="100"
+                        Value="{Binding Source={x:Static local:App.AppSettings}, Path=PositionOffsetY, Mode=TwoWay}" 
+                        TickFrequency="50" IsSnapToTickEnabled="True"/>
+                        <TextBlock Text="{Binding ElementName=PositionOffsetYSlider, Path=Value, StringFormat=\{0:F0\}px}" 
+                           VerticalAlignment="Center" 
+                           Margin="5,0,0,0" Width="45"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </GroupBox>
 
