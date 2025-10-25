@@ -37,7 +37,7 @@ DMTool is a Windows application designed for dungeon masters and game masters to
 
 ## Installation
 
-1. Download the latest release from the [Releases](https://github.com/yourusername/DMTool/releases) page
+1. Download the latest release from the [Releases](https://github.com/Hellboy-2010/DMTool/releases) page
 2. Extract the ZIP file to your preferred location
 3. Run `DMTool.exe` to start the application
 
