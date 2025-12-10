@@ -20,24 +20,15 @@
     <DebugSymbols>false</DebugSymbols>
 
     <!-- Version -->
-    <Version>1.0.3</Version>
-    <AssemblyVersion>1.0.3</AssemblyVersion>
-    <FileVersion>1.0.3</FileVersion>
+    <Version>1.0.4</Version>
+    <AssemblyVersion>1.0.4</AssemblyVersion>
+    <FileVersion>1.0.4</FileVersion>
     <Company>Robert Bladowski</Company>
     <Copyright>Copyright © 2025</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Resources\app_icon.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <COMReference Include="{215d64d2-031c-33c7-96e3-61794cd1ee61}">
-      <WrapperTool>tlbimp</WrapperTool>
-      <VersionMinor>0</VersionMinor>
-      <VersionMajor>2</VersionMajor>
-      <Guid>215d64d2-031c-33c7-96e3-61794cd1ee61</Guid>
-    </COMReference>
   </ItemGroup>
 
   <ItemGroup>

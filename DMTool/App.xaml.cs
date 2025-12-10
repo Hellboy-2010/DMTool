@@ -164,12 +164,21 @@ namespace DMTool
 
             // Zielbildschirm bestimmen
             WinForms.Screen targetScreen;
-            if (WinForms.Screen.AllScreens.Length > 1)
+            var screens = WinForms.Screen.AllScreens;
+            int targetIndex = AppSettings.TargetScreenIndex;
+
+            if (targetIndex >= 0 && targetIndex < screens.Length)
             {
-                var secondaryScreen = WinForms.Screen.AllScreens.FirstOrDefault(s => !s.Primary);
+                // Explizite Auswahl
+                targetScreen = screens[targetIndex];
+            }
+            else if (screens.Length > 1)
+            {
+                // Auto: Sekundärer Bildschirm
+                var secondaryScreen = screens.FirstOrDefault(s => !s.Primary);
                 if (secondaryScreen == null)
                 {
-                    secondaryScreen = WinForms.Screen.AllScreens.First(s => s != WinForms.Screen.PrimaryScreen);
+                    secondaryScreen = screens.First(s => s != WinForms.Screen.PrimaryScreen);
                 }
                 targetScreen = secondaryScreen;
             }
@@ -178,14 +187,20 @@ namespace DMTool
                 targetScreen = WinForms.Screen.PrimaryScreen;
             }
 
-            // Bildschirmabmessungen
-            int screenWidth = targetScreen.WorkingArea.Width;
-            int screenHeight = targetScreen.WorkingArea.Height;
+            // DPI-Skalierungsfaktor des Zielbildschirms abrufen
+            double dpiScale = DpiUtils.GetDpiScaleFactor(targetScreen);
+            
+            // Bildschirmabmessungen in LOGISCHE Einheiten umrechnen
+            // Dies ist entscheidend, da WPF Canvas logische Koordinaten erwartet
+            // Auf einem 150% Screen (DPI 144) sind 1920 Pixel effektiv nur 1280 logische Einheiten
+            double logicalScreenWidth = targetScreen.WorkingArea.Width / dpiScale;
+            double logicalScreenHeight = targetScreen.WorkingArea.Height / dpiScale;
 
-            System.Diagnostics.Debug.WriteLine($"POSITIONIERUNG MIT DYNAMISCHER GRÖSSENANPASSUNG");
-            System.Diagnostics.Debug.WriteLine($"Bildschirm: {screenWidth}x{screenHeight}");
+            System.Diagnostics.Debug.WriteLine($"POSITIONIERUNG MIT DYNAMISCHER GRÖSSENANPASSUNG (DPI-NEU)");
+            System.Diagnostics.Debug.WriteLine($"Physischer Bildschirm: {targetScreen.WorkingArea.Width}x{targetScreen.WorkingArea.Height}, DPI-Scale: {dpiScale:F2}");
+            System.Diagnostics.Debug.WriteLine($"Logischer Bildschirm: {logicalScreenWidth:F0}x{logicalScreenHeight:F0}");
 
-            // Originale Bilddimensionen
+            // Originale Bilddimensionen (Pixel ~ Logische Einheiten bei 96 DPI)
             double originalWidth = imageItem.Image.PixelWidth;
             double originalHeight = imageItem.Image.PixelHeight;
 
@@ -193,11 +208,11 @@ namespace DMTool
 
             // Maximale Skalierungsfaktoren berechnen:
             // 1. Basierend auf AppSettings.MaxImageSize
-            // 2. Basierend auf Bildschirmbreite (100%)
-            // 3. Basierend auf Bildschirmhöhe (100%)
+            // 2. Basierend auf LOGISCHER Bildschirmbreite (100%)
+            // 3. Basierend auf LOGISCHER Bildschirmhöhe (100%)
             double maxSettingScale = AppSettings.MaxImageSize / Math.Max(originalWidth, originalHeight);
-            double maxWidthScale = screenWidth / originalWidth;
-            double maxHeightScale = screenHeight / originalHeight;
+            double maxWidthScale = logicalScreenWidth / originalWidth;
+            double maxHeightScale = logicalScreenHeight / originalHeight;
 
             // Der kleinste dieser Faktoren ist der limitierende Faktor
             double scale = Math.Min(maxSettingScale, Math.Min(maxWidthScale, maxHeightScale));
@@ -217,8 +232,8 @@ namespace DMTool
             System.Diagnostics.Debug.WriteLine($"Skaliertes Bild: {scaledWidth:F1}x{scaledHeight:F1}px");
 
             // Berechnen des Verhältnisses der Bildgröße zur Bildschirmgröße
-            double widthRatio = scaledWidth / screenWidth;
-            double heightRatio = scaledHeight / screenHeight;
+            double widthRatio = scaledWidth / logicalScreenWidth;
+            double heightRatio = scaledHeight / logicalScreenHeight;
             double sizeRatio = Math.Max(widthRatio, heightRatio);
 
             System.Diagnostics.Debug.WriteLine($"Größenverhältnis zum Bildschirm: {sizeRatio:P1}");
@@ -271,31 +286,32 @@ namespace DMTool
             {
                 // Bei 0° Rotation: Normaler Fall mit Sicherheitsrand
                 minX = totalMargin;
-                maxX = (int)(screenWidth - scaledWidth - totalMargin);
+                maxX = (int)(logicalScreenWidth - scaledWidth - totalMargin);
                 minY = totalMargin;
-                maxY = (int)(screenHeight - scaledHeight - totalMargin);
+                maxY = (int)(logicalScreenHeight - scaledHeight - totalMargin);
             }
             else // Nahe 180° Rotation
             {
                 // Bei 180° Rotation brauchen wir zusätzlichen Platz auf der linken und oberen Seite
                 minX = (int)(scaledWidth + totalMargin);
-                maxX = (int)(screenWidth - totalMargin);
+                maxX = (int)(logicalScreenWidth - totalMargin);
                 minY = (int)(scaledHeight + totalMargin);
-                maxY = (int)(screenHeight - totalMargin);
+                maxY = (int)(logicalScreenHeight - totalMargin);
             }
 
-            // Sicherstellen, dass die Grenzen sinnvoll sind
+            // Sicherstellen, dass die Grenzen sinnvoll sind (Fallback auf Zentrierung)
             if (maxX < minX)
             {
                 System.Diagnostics.Debug.WriteLine("WARNUNG: Bild ist zu breit für sichere Positionierung");
                 // Zentrieren
-                minX = maxX = screenWidth / 2;
+                minX = maxX = (int)(logicalScreenWidth / 2 - (imageItem.Rotation > 90 && imageItem.Rotation < 270 ? 0 : scaledWidth/2)); 
+                // Einfache Zentrierung korrigieren:
+                 minX = maxX = (int)(logicalScreenWidth / 2); // Ungefähr mitte
             }
             if (maxY < minY)
             {
                 System.Diagnostics.Debug.WriteLine("WARNUNG: Bild ist zu hoch für sichere Positionierung");
-                // Zentrieren
-                minY = maxY = screenHeight / 2;
+                minY = maxY = (int)(logicalScreenHeight / 2);
             }
 
             System.Diagnostics.Debug.WriteLine($"Sichere Positionierungsgrenzen: X({minX}-{maxX}), Y({minY}-{maxY})");
@@ -450,7 +466,20 @@ namespace DMTool
         private double _fogRevealSize = 50.0;
         private int _positionOffsetX = 0;
         private int _positionOffsetY = 0;
+        private int _targetScreenIndex = -1; // -1 = Auto/Secondary, 0+ = Specific Index
 
+        public int TargetScreenIndex
+        {
+            get => _targetScreenIndex;
+            set
+            {
+                if (_targetScreenIndex != value)
+                {
+                    _targetScreenIndex = value;
+                    OnPropertyChanged(nameof(TargetScreenIndex));
+                }
+            }
+        }
         public int PositionOffsetX
         {
             get => _positionOffsetX;
@@ -587,7 +616,9 @@ namespace DMTool
                         EnableFogOfWar = settings.EnableFogOfWar;
                         FogRevealSize = settings.FogRevealSize;
                         PositionOffsetX = settings.PositionOffsetX;
+
                         PositionOffsetY = settings.PositionOffsetY;
+                        TargetScreenIndex = settings.TargetScreenIndex;
                     }
                 }
             }

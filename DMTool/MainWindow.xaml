@@ -54,6 +54,9 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Erste Zeile: Label links, Slider+TextBlock rechts -->
@@ -150,6 +153,15 @@
                            Margin="5,0,0,0" Width="45"/>
                     </StackPanel>
                 </Grid>
+
+                <!-- Fünfte Zeile: Zielbildschirm -->
+                <Label Grid.Row="4" Grid.Column="0" Content="Zielbildschirm:" VerticalAlignment="Center" Margin="0,5,10,5"/>
+                <ComboBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" 
+                          x:Name="ScreenSelector" 
+                          Margin="0,5" 
+                          SelectionChanged="ScreenSelector_SelectionChanged"
+                          DisplayMemberPath="Name"
+                          SelectedValuePath="Index"/>
             </Grid>
         </GroupBox>
 

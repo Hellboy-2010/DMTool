@@ -284,8 +284,10 @@ namespace DMTool
                 for (int i = 0; i < Screen.AllScreens.Length; i++)
                 {
                     var screen = Screen.AllScreens[i];
+                    double scaleFactor = DpiUtils.GetDpiScaleFactor(screen);
                     sb.AppendLine($"  {i}: {screen.DeviceName} {(screen.Primary ? "(Primär)" : "")}");
-                    sb.AppendLine($"     Bounds: {screen.Bounds.Width}x{screen.Bounds.Height} bei ({screen.Bounds.X}, {screen.Bounds.Y})");
+                    sb.AppendLine($"     Bounds (Pixel): {screen.Bounds.Width}x{screen.Bounds.Height} bei ({screen.Bounds.X}, {screen.Bounds.Y})");
+                    sb.AppendLine($"     DPI-Skalierung: {scaleFactor * 100:F0}%");
                 }
 
                 if (App.Images.Count == 0)
@@ -312,57 +314,52 @@ namespace DMTool
             }
         }
 
-        private void PositionWindowOnSecondaryScreen()
+        public void PositionWindowOnSecondaryScreen()
         {
             // Alle verfügbaren Bildschirme abrufen
             var screens = Screen.AllScreens;
+            Screen targetScreen = null;
 
-            if (screens.Length > 1)
+            int targetIndex = App.AppSettings.TargetScreenIndex;
+
+            // 1. Priorität: Benutzereinstellung
+            if (targetIndex >= 0 && targetIndex < screens.Length)
             {
-                // Finde den Nicht-Primär-Bildschirm (falls mehrere, nimm den ersten gefundenen)
-                var secondaryScreen = screens.FirstOrDefault(s => !s.Primary);
-
-                // Falls kein eindeutiger Nicht-Primär-Bildschirm gefunden wurde, nehme einfach einen anderen als den Primären
-                if (secondaryScreen == null)
-                {
-                    secondaryScreen = screens.First(s => s != Screen.PrimaryScreen);
-                }
-
-                var workingArea = secondaryScreen.WorkingArea;
-
-                // Protokolliere für Debugging-Zwecke
-                System.Diagnostics.Debug.WriteLine($"Sekundärer Bildschirm gefunden: {secondaryScreen.DeviceName}");
-                System.Diagnostics.Debug.WriteLine($"Position: ({workingArea.Left}, {workingArea.Top}), Größe: {workingArea.Width}x{workingArea.Height}");
-
-                // Setze die Fensterposition und -größe MIT Berücksichtigung der Offsets
-                Left = workingArea.Left + App.AppSettings.PositionOffsetX;
-                Top = workingArea.Top + App.AppSettings.PositionOffsetY;
-                Width = workingArea.Width;
-                Height = workingArea.Height;
-
-                System.Diagnostics.Debug.WriteLine($"Fenster positioniert mit Offsets: ({Left}, {Top}), Offsets: X={App.AppSettings.PositionOffsetX}, Y={App.AppSettings.PositionOffsetY}");
-
-                // Aktualisiere den Fog of War, um sicherzustellen, dass er die gesamte Bildschirmfläche abdeckt
-                InitializeFogOfWar();
+                targetScreen = screens[targetIndex];
+                System.Diagnostics.Debug.WriteLine($"Verwende ausgewählten Bildschirm {targetIndex}: {targetScreen.DeviceName}");
             }
+            // 2. Priorität: Automatische Erkennung (Sekundärer)
+            else if (screens.Length > 1)
+            {
+                // Finde den Nicht-Primär-Bildschirm
+                targetScreen = screens.FirstOrDefault(s => !s.Primary);
+                
+                // Fallback
+                if (targetScreen == null)
+                {
+                    targetScreen = screens.First(s => s != Screen.PrimaryScreen);
+                }
+                System.Diagnostics.Debug.WriteLine($"Automatische Wahl (Sekundär): {targetScreen.DeviceName}");
+            }
+            // 3. Priorität: Primär (Notfall)
             else
             {
-                // Fallback auf den Primärbildschirm
-                var primaryScreen = Screen.PrimaryScreen;
-                var workingArea = primaryScreen.WorkingArea;
-
-                System.Diagnostics.Debug.WriteLine("Nur ein Bildschirm gefunden. Verwende Primärbildschirm.");
-
-                // Auch hier Offsets berücksichtigen
-                Left = workingArea.Left + App.AppSettings.PositionOffsetX;
-                Top = workingArea.Top + App.AppSettings.PositionOffsetY;
-                Width = workingArea.Width;
-                Height = workingArea.Height;
-
-                // Aktualisiere den Fog of War
-                InitializeFogOfWar();
+                targetScreen = Screen.PrimaryScreen;
+                System.Diagnostics.Debug.WriteLine($"Keine Auswahl/Sekundär gefunden. Verwende Primär: {targetScreen.DeviceName}");
             }
 
+            var workingArea = targetScreen.WorkingArea;
+            
+            // Setze die Fensterposition und -größe mit der physischen Methode
+            int x = workingArea.Left + App.AppSettings.PositionOffsetX;
+            int y = workingArea.Top + App.AppSettings.PositionOffsetY;
+            
+            System.Diagnostics.Debug.WriteLine($"Setze Fensterposition auf Screen '{targetScreen.DeviceName}': ({x}, {y}), {workingArea.Width}x{workingArea.Height}");
+            DpiUtils.SetWindowPosition(this, x, y, workingArea.Width, workingArea.Height);
+
+            // Aktualisiere den Fog of War
+            InitializeFogOfWar();
+            
             // Debuginformationen aktualisieren
             UpdateDebugInfoIfEnabled();
         }
@@ -415,33 +412,24 @@ namespace DMTool
                 CreateCalibrationMarkers();
             };
 
-            // Bei Änderung der Offsets die Fensterposition aktualisieren
+            // Bei Änderung der Offsets oder des Zielbildschirms die Fensterposition aktualisieren
             App.AppSettings.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == "PositionOffsetX" || e.PropertyName == "PositionOffsetY")
+                if (e.PropertyName == "PositionOffsetX" || e.PropertyName == "PositionOffsetY" || e.PropertyName == "TargetScreenIndex")
                 {
-                    // Fensterposition aktualisieren, wenn sich die Offsets ändern
-                    UpdateWindowPositionForOffsetChange();
-
-                    // Debug-Infos aktualisieren
-                    UpdateDebugInfoIfEnabled();
+                    // Fensterposition aktualisieren
+                    // Wir nutzen die neue Methode, die jetzt public ist und Index beachtet
+                    PositionWindowOnSecondaryScreen();
                 }
             };
         }
 
-        // Diese Methode sollte bei Änderung der Offsets aufgerufen werden
+        // Veraltet, aber wir lassen sie leer um Konflikte zu vermeiden, PositionWindowOnSecondaryScreen übernimmt alles
         private void UpdateWindowPositionForOffsetChange()
         {
-            // Aktuelle Position abrufen
-            WinForms.Screen currentScreen = WinForms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(this).Handle);
-            var workingArea = currentScreen.WorkingArea;
-
-            // Position mit Offsets aktualisieren
-            Left = workingArea.Left + App.AppSettings.PositionOffsetX;
-            Top = workingArea.Top + App.AppSettings.PositionOffsetY;
-
-            System.Diagnostics.Debug.WriteLine($"Fensterposition wegen Offset-Änderung aktualisiert: ({Left}, {Top})");
         }
+
+
 
         private void CreateCalibrationMarkers()
         {
